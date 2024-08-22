@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Server</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        input {
+            margin-top: 20px;
+            padding: 10px;
+            font-size: 16px;
+            width: 300px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+            margin-top: 20px;
+        }
+        li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Hello, World!</h1>
+    <h2>Hourly Image</h2>
+    <img src="/shared/image.jpg" alt="Random Hourly Image" >
+
+    <input type="text" id="todo-input" placeholder="Enter a new TODO (max 140 characters)">
+    <button id="create-todo">Create TODO</button>
+
+    <ul id="todo-list">
+        <li>TODO 1</li>
+        <li>TODO 2</li>
+    </ul>
+
+    <script>
+        document.getElementById('create-todo').addEventListener('click', () => {
+            const todoInput = document.getElementById('todo-input');
+            const todoText = todoInput.value.trim();
+
+            if (todoText && todoText.length <= 140) {
+                fetch('/todos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ todo: todoText })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const todoList = document.getElementById('todo-list');
+                        const newTodo = document.createElement('li');
+                        newTodo.textContent = todoText;
+                        todoList.appendChild(newTodo);
+                        todoInput.value = '';
+                    } else {
+                        alert(data.message);
+                    }
+                });
+            } else {
+                alert('Todo must be 140 characters or less.');
+            }
+        });
+    </script>
+</body>
+</html>
+

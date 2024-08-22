@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-app
+  labels:
+    app: log-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-app
+  template:
+    metadata:
+      labels:
+        app: log-app
+    spec:
+      containers:
+      - name: log-generator
+        image: anonymous92/log-generator:latest
+        ports:
+        - containerPort: 3000
+        volumeMounts:
+        - name: shared-data
+          mountPath: /shared
+        env:
+        - name: PORT
+          value: "3000"
+      - name: log-reader
+        image: anonymous92/log-reader:latest
+        ports:
+        - containerPort: 3001
+        volumeMounts:
+        - name: shared-data
+          mountPath: /shared
+        env:
+        - name: PORT
+          value: "3001"
+      volumes:
+      - name: shared-data
+        emptyDir: {}

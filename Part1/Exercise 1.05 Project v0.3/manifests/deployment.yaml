@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-webserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node-webserver
+  template:
+    metadata:
+      labels:
+        app: node-webserver
+    spec:
+      containers:
+      - name: node-webserver
+        image: anonymous92/node-webserver:latest
+        ports:
+        - containerPort: 4173
+        env:
+        - name: PORT
+          value: "4173"
+
