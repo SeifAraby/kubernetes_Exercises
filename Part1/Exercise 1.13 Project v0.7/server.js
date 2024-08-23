@@ -13,17 +13,18 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const downloadImage = () => {
-    const file = fs.createWriteStream(imagePath);
-    https.get('https://picsum.photos/1200', (response) => {
-        response.pipe(file);
-        file.on('finish', () => {
-            file.close(() => {
-                console.log('Downloaded new image');
-            });
-        });
-    }).on('error', (err) => {
-        fs.unlink(imagePath);
-        console.error('Error downloading the image:', err.message);
+    const command = `wget -O ${imagePath} https://picsum.photos/1200`;
+
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error downloading the image: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            console.error(`wget stderr: ${stderr}`);
+            return;
+        }
+        console.log(`Downloaded new image successfully.`);
     });
 };
 

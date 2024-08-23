@@ -8,21 +8,23 @@ const port = process.env.PORT || 3000;
 
 const imagePath = path.join('/shared', 'image.jpg');
 
-// Function to download the image
+// Function to download the image using wget
 const downloadImage = () => {
-    const file = fs.createWriteStream(imagePath);
-    https.get('https://picsum.photos/1200', (response) => {
-        response.pipe(file);
-        file.on('finish', () => {
-            file.close(() => {
-                console.log('Downloaded new image');
-            });
-        });
-    }).on('error', (err) => {
-        fs.unlink(imagePath); // Delete the file if error
-        console.error('Error downloading the image:', err.message);
+    const command = `wget -O ${imagePath} https://picsum.photos/1200`;
+
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error downloading the image: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            console.error(`wget stderr: ${stderr}`);
+            return;
+        }
+        console.log(`Downloaded new image successfully.`);
     });
 };
+
 
 // Download the image if it doesn't exist or is older than 60 minutes
 if (!fs.existsSync(imagePath) || (Date.now() - fs.statSync(imagePath).mtimeMs) > 60 * 60 * 1000) {
