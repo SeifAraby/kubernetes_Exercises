@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: applications
+data:
+  POSTGRES_DB: pingpongdb
+  POSTGRES_USER: pingponguser
+

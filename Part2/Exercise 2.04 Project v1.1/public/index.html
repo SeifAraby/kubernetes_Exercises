@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden; /* Prevents the entire page from scrolling */
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 100%;
+            overflow-y: auto; /* Allows scrolling within the container */
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 20px;
+        }
+        input {
+            margin-top: 20px;
+            padding: 10px;
+            font-size: 16px;
+            width: 300px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin-top: 10px;
+            box-sizing: border-box;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+            margin-top: 20px;
+            width: 100%;
+        }
+        li {
+            margin: 5px 0;
+            text-align: left;
+            width: 100%;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+        h1, h2 {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Todo App</h1>
+        <h2>Random Hourly Image</h2>
+        <img src="/shared/image.jpg" alt="Random Hourly Image">
+
+        <input type="text" id="todo-input" placeholder="Enter a new TODO (max 140 characters)">
+        <button id="create-todo">Create TODO</button>
+
+        <ul id="todo-list">
+            <!-- Existing todos will be populated here -->
+        </ul>
+    </div>
+
+    <script>
+        function updateTodoList(todos) {
+            const todoList = document.getElementById('todo-list');
+            todoList.innerHTML = ''; // Clear current list
+            todos.forEach(todo => {
+                const newTodo = document.createElement('li');
+                newTodo.textContent = todo;
+                todoList.appendChild(newTodo);
+            });
+        }
+
+        // Fetch existing todos on load
+        fetch('http://localhost:30120/todo-backend/todos')
+            .then(response => response.json())
+            .then(data => {
+                updateTodoList(data.todos);
+            })
+            .catch(err => console.error('Error fetching todos:', err));
+
+        document.getElementById('create-todo').addEventListener('click', () => {
+            const todoInput = document.getElementById('todo-input');
+            const todoText = todoInput.value.trim();
+
+            if (todoText && todoText.length <= 140) {
+                fetch('http://localhost:30120/todo-backend/todos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ todo: todoText })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateTodoList(data.todos);
+                        todoInput.value = ''; // Clear input field
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(err => console.error('Error creating todo:', err));
+            } else {
+                alert('Todo must be 140 characters or less.');
+            }
+        });
+    </script>
+</body>
+</html>
+
