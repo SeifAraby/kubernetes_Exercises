@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ping-pong-service
+  namespace: applications
+spec:
+  selector:
+    app: ping-pong
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+
