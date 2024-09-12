@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: applications      
+  name: log-output
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-output
+  template:
+    metadata:
+      labels:
+        app: log-output
+    spec:
+      containers:
+      - name: log-output
+        image: anonymous92/log-output
+        readinessProbe:
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          httpGet:
+            path: /healthz
+            port: 3000
+        resources:
+          requests:
+            memory: "80Mi"
+            cpu: "50m"
+          limits:
+            memory: "120Mi"
+            cpu: "100m"
+        ports:
+        - containerPort: 3000
+        env:
+        - name: MESSAGE
+          valueFrom:
+            configMapKeyRef:
+              name: logs-pings-config
+              key: MESSAGE
+        volumeMounts:
+        - name: config-volume
+          mountPath: "/usr/src/app/config"
+      volumes:
+      - name: config-volume
+        configMap:
+          name: logs-pings-config
+          items:
+            - key: information.txt
+              path: information.txt

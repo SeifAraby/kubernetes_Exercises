@@ -1,0 +1,31 @@
+name: Delete Environment
+
+on:
+  delete:
+    branches:
+      - '*'
+
+jobs:
+  delete-environment:
+    name: Delete Environment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install kubectl
+        run: |
+          sudo apt-get update && sudo apt-get install -y kubectl
+
+      - name: Set up kubeconfig for Kubernetes cluster
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
+
+      - name: Determine namespace to delete
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "Main branch, no environment to delete"
+            exit 0
+          else
+            NAMESPACE="${{ github.ref_name }}-env"
+            kubectl delete namespace $NAMESPACE || echo "Namespace $NAMESPACE already deleted or doesn't exist"
+          fi

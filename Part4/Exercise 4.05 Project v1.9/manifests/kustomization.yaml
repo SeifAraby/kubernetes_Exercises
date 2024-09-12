@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - backend-rollout.yaml
+  - backend-service.yaml
+  - ingress.yaml
+  - loki-backend-config.yaml
+  - postgres-config.yaml
+  - postgres-deployment.yaml
+  - postgres-pvc.yaml
+  - postgres-pv.yaml
+  - postgres-secret.yaml
+  - postgres-service.yaml
+  - todo-rollout.yaml
+  - todo-service.yaml  
+  - hpa-todo.yaml
+  - hpa-todo-backend.yaml
+  - hpa-todo-db.yaml  
+  - cpu-usage-check.yaml  

@@ -1,0 +1,76 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: todo-backend
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: todo-backend
+  strategy:
+    canary:
+      steps:
+        - setWeight: 50
+        - pause: { duration: 5m }  # Wait for 5 minutes to run the analysis
+        - analysis:
+            templates:
+              - templateName: cpu-usage-check
+        - setWeight: 100        
+  template:
+    metadata:
+      labels:
+        app: todo-backend
+    spec:
+      containers:
+      - name: todo-backend
+        image: anonymous92/todo-backend
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "150Mi"
+            cpu: "100m"
+          limits:
+            memory: "250Mi"
+            cpu: "175m"
+        ports:
+        - containerPort: 3000
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_DB
+        - name: POSTGRES_USER
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+        - name: DATABASE_URL
+          value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres-service:5432/$(POSTGRES_DB)"
+        - name: LOKI_URL
+          valueFrom:
+            configMapKeyRef:
+              name: loki-backend-config
+              key: LOKI_URL      
+        - name: NATS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: broadcaster-config
+              key: NATS_URL      

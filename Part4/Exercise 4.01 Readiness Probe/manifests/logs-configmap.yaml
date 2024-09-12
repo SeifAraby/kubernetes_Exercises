@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logs-pings-config
+  namespace: applications
+data:
+  information.txt: |
+    this text is from file
+  MESSAGE: "hello world"
