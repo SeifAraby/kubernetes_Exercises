@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wikipedia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wikipedia
+  template:
+    metadata:
+      labels:
+        app: wikipedia
+    spec:
+      initContainers:
+      - name: init-container
+        image: curlimages/curl:latest
+        command: ['sh', '-c', 'curl -o /usr/share/nginx/html/index.html https://en.wikipedia.org/wiki/Kubernetes']
+        volumeMounts:
+        - name: html-volume
+          mountPath: /usr/share/nginx/html
+
+      containers:
+      - name: nginx
+        image: anonymous92/random-wiki
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: html-volume
+          mountPath: /usr/share/nginx/html
+
+      - name: sidecar-container
+        image: curlimages/curl:latest
+        command: ['sh', '-c', 'while true; do sleep $((RANDOM % 600 + 300)); curl -o /usr/share/nginx/html/index.html https://en.wikipedia.org/wiki/Special:Random; done']
+        volumeMounts:
+        - name: html-volume
+          mountPath: /usr/share/nginx/html
+
+      volumes:
+      - name: html-volume
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wikipedia-service
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: wikipedia
+

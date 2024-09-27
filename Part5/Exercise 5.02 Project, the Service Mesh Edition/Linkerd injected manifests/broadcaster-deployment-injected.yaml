@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-broadcaster
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todo-broadcaster
+  template:
+    metadata:
+      annotations:
+        linkerd.io/inject: enabled
+      labels:
+        app: todo-broadcaster
+    spec:
+      containers:
+      - env:
+        - name: NATS_URL
+          valueFrom:
+            configMapKeyRef:
+              key: NATS_URL
+              name: broadcaster-config
+        - name: DISCORD_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: DISCORD_TOKEN
+              name: broadcaster-secrets
+        - name: DISCORD_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              key: DISCORD_WEBHOOK_URL
+              name: broadcaster-secrets
+        - name: DISCORD_CHANNEL_ID
+          valueFrom:
+            configMapKeyRef:
+              key: DISCORD_CHANNEL_ID
+              name: broadcaster-config
+        image: anonymous92/todo-broadcaster
+        name: todo-broadcaster
+        ports:
+        - containerPort: 3000
+---
+

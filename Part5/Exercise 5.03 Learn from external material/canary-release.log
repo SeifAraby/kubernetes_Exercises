@@ -1,0 +1,1096 @@
+Script started on 2024-09-27 14:35:49+00:00 [TERM="xterm" TTY="/dev/pts/0" COLUMNS="207" LINES="59"]
+master@k8s-master:~/MOOC-k8s$ kubectl create namespace argo-rollouts
+namespace/argo-rollouts created
+master@k8s-master:~/MOOC-k8s$ kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+customresourcedefinition.apiextensions.k8s.io/analysisruns.argoproj.io created
+customresourcedefinition.apiextensions.k8s.io/clusteranalysistemplates.argoproj.io created
+customresourcedefinition.apiextensions.k8s.io/experiments.argoproj.io created
+customresourcedefinition.apiextensions.k8s.io/rollouts.argoproj.io created
+serviceaccount/argo-rollouts created
+clusterrole.rbac.authorization.k8s.io/argo-rollouts created
+clusterrole.rbac.authorization.k8s.io/argo-rollouts-aggregate-to-admin created
+clusterrole.rbac.authorization.k8s.io/argo-rollouts-aggregate-to-edit created
+clusterrole.rbac.authorization.k8s.io/argo-rollouts-aggregate-to-view created
+clusterrolebinding.rbac.authorization.k8s.io/argo-rollouts created
+configmap/argo-rollouts-config created
+secret/argo-rollouts-notification-secret created
+service/argo-rollouts-metrics created
+deployment.apps/argo-rollouts created
+Error from server: error when creating "https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml": etcdserver: request timed out
+master@k8s-master:~/MOOC-k8s$   kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+customresourcedefinition.apiextensions.k8s.io/analysisruns.argoproj.io configured
+customresourcedefinition.apiextensions.k8s.io/analysistemplates.argoproj.io configured
+customresourcedefinition.apiextensions.k8s.io/clusteranalysistemplates.argoproj.io configured
+customresourcedefinition.apiextensions.k8s.io/experiments.argoproj.io configured
+customresourcedefinition.apiextensions.k8s.io/rollouts.argoproj.io configured
+serviceaccount/argo-rollouts unchanged
+clusterrole.rbac.authorization.k8s.io/argo-rollouts unchanged
+clusterrole.rbac.authorization.k8s.io/argo-rollouts-aggregate-to-admin unchanged
+clusterrole.rbac.authorization.k8s.io/argo-rollouts-aggregate-to-edit unchanged
+clusterrole.rbac.authorization.k8s.io/argo-rollouts-aggregate-to-view unchanged
+clusterrolebinding.rbac.authorization.k8s.io/argo-rollouts unchanged
+configmap/argo-rollouts-config unchanged
+secret/argo-rollouts-notification-secret unchanged
+service/argo-rollouts-metrics unchanged
+deployment.apps/argo-rollouts configured
+master@k8s-master:~/MOOC-k8s$ kubectl apply -f - <<EOF
+> apiVersion: v1
+> kind: ConfigMap
+> metadata:
+>   name: argo-rollouts-config # must be so name
+>   namespace: argo-rollouts # must be in this namespace
+> data:
+>   trafficRouterPlugins: |-
+>     - name: "argoproj-labs/gatewayAPI"
+>       location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.0.0-rc1/gateway-api-plugin-linux-amd64"
+> ---
+> apiVersion: rbac.authorization.k8s.io/v1
+> kind: ClusterRole
+> metadata:
+>   name: argo-controller-role
+>   namespace: argo-rollouts
+> rules:
+>   - apiGroups:
+>       - gateway.networking.k8s.io
+>     resources:
+>       - httproutes
+>     verbs:
+>       - "*"
+> ---
+> apiVersion: rbac.authorization.k8s.io/v1
+> kind: ClusterRoleBinding
+> metadata:
+>   name: argo-controller
+> roleRef:
+>   apiGroup: rbac.authorization.k8s.io
+>   kind: ClusterRole
+>   name: argo-controller-role
+> subjects:
+>   - namespace: argo-rollouts
+>     kind: ServiceAccount
+>     name: argo-rollouts
+> EOF
+configmap/argo-rollouts-config configured
+clusterrole.rbac.authorization.k8s.io/argo-controller-role created
+clusterrolebinding.rbac.authorization.k8s.io/argo-controller created
+master@k8s-master:~/MOOC-k8s$ curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+100  120M  100  120M    0     0  3315k      0  0:00:37  0:00:37 --:--:-- 3466k
+master@k8s-master:~/MOOC-k8s$ chmod +x ./kubectl-argo-rollouts-linux-amd64
+master@k8s-master:~/MOOC-k8s$ sudo mv ./kubectl-argo-rollouts-linux-amd64 /usr/local/bin/kubectl-argo-rollouts
+[sudo] password for master:
+master@k8s-master:~/MOOC-k8s$ kubectl argo rollouts version
+kubectl-argo-rollouts: v1.7.2+59e5bd3
+  BuildDate: 2024-08-13T18:26:20Z
+  GitCommit: 59e5bd385c031600f86075beb9d77620f8d7915e
+  GitTreeState: clean
+  GoVersion: go1.21.13
+  Compiler: gc
+  Platform: linux/amd64
+master@k8s-master:~/MOOC-k8s$ kubectl create ns test && \
+>   kubectl apply -f https://run.linkerd.io/flagger.yml
+namespace/test created
+deployment.apps/load created
+configmap/frontend created
+deployment.apps/frontend created
+service/frontend created
+deployment.apps/podinfo created
+service/podinfo created
+master@k8s-master:~/MOOC-k8s$ kubectl apply -f - <<EOF
+> apiVersion: gateway.networking.k8s.io/v1beta1
+> kind: HTTPRoute
+> metadata:
+>   name: argo-rollouts-http-route
+>   namespace: test
+> spec:
+>   parentRefs:
+>     - name: podinfo
+>       namespace: test
+>       kind: Service
+>       group: core
+>       port: 9898
+>   rules:
+>     - backendRefs:
+>         - name: podinfo-stable
+>           namespace: test
+>           port: 9898
+>         - name: podinfo-canary
+>           namespace: test
+>           port: 9898
+> ---
+> apiVersion: v1
+> kind: Service
+> metadata:
+>   name: podinfo-canary
+>   namespace: test
+> spec:
+>   ports:
+>     - port: 8989
+>       targetPort: 8989
+>       protocol: TCP
+>       name: http
+>   selector:
+>     app: podinfo
+> ---
+> apiVersion: v1
+> kind: Service
+> metadata:
+>   name: podinfo-stable
+>   namespace: test
+> spec:
+>   ports:
+>     - port: 8989
+>       targetPort: 8989
+>       protocol: TCP
+>       name: http
+>   selector:
+>     app: podinfo
+> ---
+> apiVersion: argoproj.io/v1alpha1
+> kind: Rollout
+> metadata:
+>   name: rollouts-demo
+>   namespace: test
+> spec:
+>   replicas: 1
+>   strategy:
+>     canary:
+>       canaryService: podinfo-canary # our created canary service
+>       stableService: podinfo-stable # our created stable service
+>       trafficRouting:
+>         plugins:
+>           argoproj-labs/gatewayAPI:
+>             httpRoute: argo-rollouts-http-route # our created httproute
+>             namespace: test
+>       steps:
+>         - setWeight: 30
+>         - pause: {}
+>         - setWeight: 40
+>         - pause: { duration: 10 }
+>         - setWeight: 60
+>         - pause: { duration: 10 }
+>         - setWeight: 80
+>         - pause: { duration: 10 }
+>   revisionHistoryLimit: 2
+>   selector:
+>     matchLabels:
+>       app: podinfo
+>   template:
+>     metadata:
+>       labels:
+>         app: podinfo
+>     spec:
+>       containers:
+>         - name: podinfod
+>           image: quay.io/stefanprodan/podinfo:1.7.0
+>           ports:
+>             - containerPort: 9898
+>               protocol: TCP
+> EOF
+httproute.gateway.networking.k8s.io/argo-rollouts-http-route created
+service/podinfo-canary created
+service/podinfo-stable created
+rollout.argoproj.io/rollouts-demo created
+master@k8s-master:~/MOOC-k8s$ kubectl argo rollouts -n test set image rollouts-demo \
+>   podinfod=quay.io/stefanprodan/podinfo:1.7.1
+rollout "rollouts-demo" image updated
+master@k8s-master:~/MOOC-k8s$ kubectl argo rollouts -n test get rollout rollouts-demo --watch
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  20s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   0s   canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   20s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  21s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   1s   canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   21s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  22s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   2s   canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   22s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  23s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   3s   canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   23s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  24s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   4s   canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   24s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  26s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   6s   canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   26s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  30s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   10s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   30s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  31s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   11s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   31s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  32s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   12s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   32s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  33s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   13s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   33s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  34s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   14s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   34s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  35s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   15s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   35s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  36s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   16s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   36s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  37s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   17s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   37s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  38s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   18s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   38s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  39s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   19s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   39s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  40s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   20s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   40s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  41s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   21s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   41s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  42s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   22s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   42s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  43s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   23s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   43s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  44s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   24s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   44s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  45s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   25s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   45s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  46s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   26s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   46s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  47s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   27s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   47s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  48s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   28s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   48s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  49s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   29s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   49s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  50s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   30s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   50s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  51s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   31s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   51s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  52s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   32s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   52s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  53s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   33s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   53s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  54s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   34s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   54s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  55s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   35s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   55s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  56s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   36s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   56s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  57s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   37s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   57s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  58s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   38s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   58s
+^Cmaster@k8s-master:~/MOOC-k8s$ kubectl get all -n test
+NAME                           READY   STATUS    RESTARTS   AGE
+pod/frontend-f6f5549f8-qdrlv   2/2     Running   0          82s
+pod/load-856b85d48d-26v4l      2/2     Running   0          82s
+pod/podinfo-5f6cfbbbc8-8kbxm   2/2     Running   0          82s
+
+NAME                     TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+service/frontend         ClusterIP   10.109.64.230    <none>        8080/TCP   82s
+service/podinfo          ClusterIP   10.102.194.61    <none>        9898/TCP   82s
+service/podinfo-canary   ClusterIP   10.109.227.237   <none>        8989/TCP   65s
+service/podinfo-stable   ClusterIP   10.108.192.105   <none>        8989/TCP   65s
+
+NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/frontend   1/1     1            1           82s
+deployment.apps/load       1/1     1            1           82s
+deployment.apps/podinfo    1/1     1            1           82s
+
+NAME                                       DESIRED   CURRENT   READY   AGE
+replicaset.apps/frontend-f6f5549f8         1         1         1       82s
+replicaset.apps/load-856b85d48d            1         1         1       82s
+replicaset.apps/podinfo-5f6cfbbbc8         1         1         1       82s
+replicaset.apps/rollouts-demo-77c4c4ccd9   0         0         0       65s
+replicaset.apps/rollouts-demo-bbb7fc9db    0         0         0       45s
+master@k8s-master:~/MOOC-k8s$ kubectl argo rollouts -n test get rollout rollouts-demo --watch
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  70s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   50s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   70s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  71s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   51s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   71s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  72s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   52s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   72s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  73s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   53s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   73s
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  74s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   54s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   74s
+^C
+Name:            rollouts-demo
+Namespace:       test
+Status:          ◌ Progressing
+Message:         more replicas need to be updated
+Strategy:        Canary
+  Step:          0/8
+  SetWeight:     30
+  ActualWeight:  0
+Replicas:
+  Desired:       1
+  Current:       0
+  Updated:       0
+  Ready:         0
+  Available:     0
+
+NAME                              KIND        STATUS         AGE  INFO
+⟳ rollouts-demo                   Rollout     ◌ Progressing  77s
+├──# revision:2
+│  └──⧉ rollouts-demo-bbb7fc9db   ReplicaSet  • ScaledDown   57s  canary
+└──# revision:1
+   └──⧉ rollouts-demo-77c4c4ccd9  ReplicaSet  • ScaledDown   77s
+master@k8s-master:~/MOOC-k8s$ watch linkerd viz -n test stat po --from deploy/load
+master@k8s-master:~/MOOC-k8s$ kubectl delete ns argo-rollouts && \
+>   kubectl delete ns test
+namespace "argo-rollouts" deleted
+namespace "test" deleted
+^Cmaster@k8s-master:~/MOOC-k8s$ exit
+exit
+
+Script done on 2024-09-27 14:47:04+00:00 [COMMAND_EXIT_CODE="1"]
+

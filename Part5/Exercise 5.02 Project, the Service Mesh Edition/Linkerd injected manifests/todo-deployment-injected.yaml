@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-app
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: todo-app
+  template:
+    metadata:
+      annotations:
+        linkerd.io/inject: enabled
+      labels:
+        app: todo-app
+    spec:
+      containers:
+      - env:
+        - name: PORT
+          value: "3000"
+        image: anonymous92/node-webserver:latest
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        name: todo-app
+        ports:
+        - containerPort: 3000
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          limits:
+            cpu: 100m
+            memory: 120Mi
+          requests:
+            cpu: 50m
+            memory: 80Mi
+        volumeMounts:
+        - mountPath: /shared
+          name: image-cache
+      volumes:
+      - emptyDir: {}
+        name: image-cache
+---
+

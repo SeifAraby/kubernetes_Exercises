@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: broadcaster-config
+  namespace: default
+data:
+  NATS_URL: "nats://my-nats.default.svc.cluster.local:4222"
+  EXTERNAL_SERVICE_TYPE: "discord"
+  DISCORD_CHANNEL_ID: "1282984871526010890"
